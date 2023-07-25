@@ -78,6 +78,10 @@ func TestProwTrans(t *testing.T) {
 		configs bool
 	}{
 		{
+			name:    "apply_patches",
+			configs: true,
+		},
+		{
 			name: "simple transform",
 			args: []string{"--mapping=istio=istio-private"},
 		},

@@ -1,0 +1,9 @@
+transforms:
+- mapping:
+    istio: istio
+  input: {{.Input}}
+  output: {{.Output}}
+  patches:
+  - op: replace
+    path: /spec/containers/0/command/0
+    value: "false"

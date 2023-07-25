@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"sort"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	dockername "github.com/google/go-containerregistry/pkg/name"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
@@ -378,6 +380,9 @@ func applyDefaultTransforms(dst *configuration.Transform, srcs ...*configuration
 		}
 		if !dst.Clean {
 			dst.Clean = src.Clean
+		}
+		if len(dst.Patches) == 0 {
+			dst.Patches = src.Patches
 		}
 	}
 }
@@ -859,6 +864,40 @@ func updateTags(o options, job *config.JobBase) {
 	}
 }
 
+// applyPatches applies custom jsonpatch-style patches
+func applyPatches(o options, job *config.JobBase) {
+	if len(o.Patches) == 0 {
+		return
+	}
+
+	patchJson, err := json.Marshal(o.Patches)
+	if err != nil {
+		util.PrintErr(fmt.Sprintf("unmarshal patch failed: %v", err))
+	}
+
+	patch, err := jsonpatch.DecodePatch(patchJson)
+	if err != nil {
+		util.PrintErr(fmt.Sprintf("decoding patch failed: %s", err))
+	}
+
+	jobConfigJson, err := json.Marshal(job)
+	if err != nil {
+		util.PrintErr(fmt.Sprintf("unable to marshal job: %v.", err))
+		return
+	}
+	modified, err := patch.Apply(jobConfigJson)
+	if err != nil {
+		util.PrintErr(fmt.Sprintf("unable to apply patch: %v.", err))
+		return
+	}
+
+	err = json.Unmarshal(modified, job)
+	if err != nil {
+		util.PrintErr(fmt.Sprintf("patch cannot unmarshal to job: %v.", err))
+		return
+	}
+}
+
 // sortJobs sorts jobs based on a provided sort order.
 func sortJobs(o options, pre map[string][]config.Presubmit, post map[string][]config.Postsubmit, per []config.Periodic) {
 	if o.Sort == "" {
@@ -1104,6 +1143,7 @@ func generateJobs(o options) {
 				pruneJobBase(o, &job.JobBase)
 				updateHubs(o, &job.JobBase)
 				updateTags(o, &job.JobBase)
+				applyPatches(o, &job.JobBase)
 
 				presubmit[orgrepo] = append(presubmit[orgrepo], job)
 			}
@@ -1130,6 +1170,7 @@ func generateJobs(o options) {
 				pruneJobBase(o, &job.JobBase)
 				updateHubs(o, &job.JobBase)
 				updateTags(o, &job.JobBase)
+				applyPatches(o, &job.JobBase)
 
 				postsubmit[orgrepo] = append(postsubmit[orgrepo], job)
 			}
@@ -1164,6 +1205,7 @@ func generateJobs(o options) {
 			pruneJobBase(o, &job.JobBase)
 			updateHubs(o, &job.JobBase)
 			updateTags(o, &job.JobBase)
+			applyPatches(o, &job.JobBase)
 
 			periodic = append(periodic, job)
 		}

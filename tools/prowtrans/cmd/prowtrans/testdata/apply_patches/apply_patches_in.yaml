@@ -1,0 +1,17 @@
+postsubmits:
+  istio/istio:
+  - name: example_postsubmit
+    spec:
+      containers:
+      - command:
+        - "true"
+        image: gcr.io/istio-testing/build-tools:master-2019-11-14T12-01-13
+
+presubmits:
+  istio/istio:
+  - name: example_presubmit
+    spec:
+      containers:
+      - command:
+        - "true"
+        image: gcr.io/istio-testing/build-tools:master-2019-11-14T12-01-13
